@@ -52,7 +52,7 @@ endmodule
 //width depends on range of reward value, depth depends on number of states times num of actions
 module rtable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 256) (
     input wire [ADDR_WIDTH-1:0] i_addr, 
-    input reg read, //need this??
+    input wire read, //need this??
     output reg [DATA_WIDTH-1:0] o_data);
 
     always @ (i_addr)
@@ -72,11 +72,11 @@ endmodule
 //map to next state using ROM LUT
 module nextstable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 64) (
     input wire [ADDR_WIDTH-1:0] i_addr, 
-    input reg read,
+    input wire read,
     output reg [DATA_WIDTH-1:0] o_data);
 
-    always @ (read or i_addr) //???
-    begin
+    always @ (i_addr) 
+	begin
         case (i_addr)
             8'b00000000: o_data<= 8'b00000000;
             8'b00000000: o_data<= 8'b00000000;
@@ -91,8 +91,8 @@ endmodule
 
 //The 4-stage (3-stage?) pipeline
 //inputs: state-action
-module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 256) (
-        input reg[7:0] alpha, input reg[7:0] gamma);
+module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8,  = 16) (
+        input wire[7:0] alpha, input wire[7:0] gamma);
 
     //used in stage 1
     reg[7:0] q;
@@ -114,25 +114,25 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 256) (
     reg clk;
     //used for q table reading & writing 
     reg [ADDR_WIDTH-1:0] addrq;  
-    wire wflagq; //0 or 1
+    reg wflagq; //0 or 1
     reg [DATA_WIDTH-1:0] data_inq;
-    reg [DATA_WIDTH-1:0] data_outq;
+    wire [DATA_WIDTH-1:0] data_outq;
 
     //used for qmax table reading & writing
     reg [ADDR_WIDTH-1:0] addrqmax;
-    wire wflagqmax; //0 or 1
+    reg wflagqmax; //0 or 1
     reg [DATA_WIDTH-1:0] data_inqmax;
-    reg [DATA_WIDTH-1:0] data_outqmax;
+    wire [DATA_WIDTH-1:0] data_outqmax;
 
     //used for r table reading & writing
     reg [ADDR_WIDTH-1:0] addrr;
     reg wflagr; //0 or 1
-    reg [DATA_WIDTH-1:0] data_outr;
+    wire [DATA_WIDTH-1:0] data_outr;
 
     //used for finding next state
     reg [ADDR_WIDTH-1:0] addrnext;
     reg read;
-    reg [DATA_WIDTH-1:0] data_outnext;
+    wire [DATA_WIDTH-1:0] data_outnext;
 
     always begin
         #5 clk = ~clk;  // timescale is 1ns so #5 provides 100MHz clock ?????? what clock frequency do we choose?
