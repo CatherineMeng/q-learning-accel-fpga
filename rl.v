@@ -52,7 +52,7 @@ endmodule
 //width depends on range of reward value, depth depends on number of states times num of actions
 module rtable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 256) (
     input wire [ADDR_WIDTH-1:0] i_addr, 
-    input wire i_read, //need this??
+    input wire rflag_r, //need this??
     output reg [DATA_WIDTH-1:0] o_data);
 
     always @ (rflag_r)
@@ -72,11 +72,11 @@ endmodule
 //map to next state using ROM LUT
 module nextstable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 64) (
     input wire [ADDR_WIDTH-1:0] i_addr, 
-    input wire i_read,
+    input wire rflag_next,
     output reg [DATA_WIDTH-1:0] o_data);
 
     always @ (rflag_next) 
-	begin
+    begin
         case (i_addr)
             8'b00000000: o_data<= 8'b00000000;
             8'b00000000: o_data<= 8'b00000000;
@@ -91,7 +91,7 @@ endmodule
 
 //The 4-stage (3-stage?) pipeline
 //inputs: state-action
-module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8,  = 16) (
+module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) (
         input wire[7:0] alpha, input wire[7:0] gamma);
 
     //used in stage 1
@@ -104,6 +104,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8,  = 16) (
     reg[5:0] ends;
     //reg[5:0] nexts; equal to data_out_next below
     reg[1:0] action;
+    reg[1:0] numactions;
     //used in stage 2
     reg[15:0] ar;
     reg[15:0] oneminusa; //1-alpha
@@ -205,9 +206,9 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8,  = 16) (
 
         //write back to qmax table
         if (sum>q)begin
-        	wflag_qmax<=1;
-        	addr_qmax<=s;
-        	data_in_qmax<=sum;
+            wflag_qmax<=1;
+            addr_qmax<=s;
+            data_in_qmax<=sum;
         end;
 
         //write back to q table
@@ -216,28 +217,28 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8,  = 16) (
         data_in_q<=sum;
     end
 
-    qtable #(.ADDR_WIDTH (8), .DATA_WIDTH(8), .DEPTH(256) qt0(
+    qtable qt0(
         .i_clk(clk), 
         .i_addr(addr_q), 
         .i_write(wflag_q), 
         .i_data(data_in_q),
         .o_data(data_out_q));
 
-    qmaxtable #(.ADDR_WIDTH (8), .DATA_WIDTH(8), .DEPTH(256) qt0(
+    qmaxtable qmaxt0(
         .i_clk(clk), 
         .i_addr(addr_r), 
         .i_write(wflag_qmax), 
         .i_data(data_in_qmax),
         .o_data(data_out_qmax));
 
-    rtable #(.ADDR_WIDTH (8), .DATA_WIDTH(8), .DEPTH(256) qt0(
+    rtable rt0(
         .i_addr(addr_r), 
-        .i_read(rflag_r), 
+        .rflag_next(rflag_r), 
         .o_data(data_out_r));
 
-    nextstable #(.ADDR_WIDTH (8), .DATA_WIDTH(8), .DEPTH(256) qt0(
+    nextstable next0(
         .i_addr(addr_next), 
-        .i_read(rflag_next), 
+        .rflag_next(rflag_next), 
         .o_data(data_out_next));
 
 endmodule
