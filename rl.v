@@ -100,10 +100,10 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8,  = 16) (
     reg[7:0] qmax;
     reg[7:0] oneminusa;
     reg[15:0] ag; //alpha*gamma
-    reg[4:0] s;
-    reg[4:0] ends;
-    reg[4:0] nexts;
-    reg[4:0] action;
+    reg[5:0] s;
+    reg[5:0] ends;
+    //reg[5:0] nexts; equal to data_outnext below
+    reg[1:0] action;
     //used in stage 2
     reg[15:0] ar;
     reg[15:0] oneminusa; //1-alpha
@@ -148,23 +148,23 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8,  = 16) (
     always @(posedge clk) begin
 
         //Random action generator -> draws a
-        action<=$urandom%10;
+        action<=$urandom%4;
         //locate and read Q value, reward from q and reward table
         //read from q table
         addrq<=s*numactions+a;
         wflagq<=0;
         q<=data_outq;
+        
         //read from r table
         addrr<=s*numactions+a;
         wflagr<=0;
         r<=data_outr;
 
         //locate next state nexts from nexts table:
-        addrnext<=s*numactions+a;
-        nexts<=data_outnext;
+        addrnext<=s*numactions+a; //now data_outnext is next state, which will be used as address for looking up Qmax value
 
         //locate Qmax at next state from Qmax table
-        addrqmax<=nexts;
+        addrqmax<=data_outnext;
         qmax<=data_outqmax;
 
         //calculate 1-a and a*g 
@@ -173,22 +173,24 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8,  = 16) (
         
 
         s<=nexts;
+
+        //if (s == ends) $finish 
     end     
 
     //--------------stage 2-----------------
 
     // combine stage 2 and 3?
-    always @(posedge clk) begin
+    always @(qmax or r or q or ag or oneminusa) begin
+    //always @(posedge clk) begin???
         //calculations of q learning function
-        //while (k<steplimit)
         ar<=alpha*r;
         oneminusaq<=oneminusa*q;
         agqmax<=ag*qmax;
     end
 
     //--------------stage 3-----------------
-    always @(posedge clk) begin
-        //while (k<steplimit)
+    always @(ar or agqmax or oneminusaq) begin
+    //always @(posedge clk) begin
                 //adder
         sum <= ar + oneminusaq + agqmax;
         //end
@@ -196,7 +198,8 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8,  = 16) (
     end
 
     //--------------stage 4-----------------
-    always @(posedge clk) begin
+    always @(sum) begin
+    //always @(posedge clk) begin
 
         //write back to q table
 
