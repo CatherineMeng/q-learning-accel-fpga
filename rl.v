@@ -2,7 +2,7 @@
 //width depends on range of q value, depth depends on number of states times num of actions
 
 //assuming 64states, 4 actions, 256 s+a
-//state: 5:0 action: 1:0    s+a: 7:0 
+//state: 5:0 action: 1:0    {s,a}: 7:0 
 //q values stored on BRAM
 module qtable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 256) (
     input wire i_clk,
@@ -52,10 +52,10 @@ endmodule
 //width depends on range of reward value, depth depends on number of states times num of actions
 module rtable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 256) (
     input wire [ADDR_WIDTH-1:0] i_addr, 
-    input wire rflag_r, //need this??
+    input wire i_clk, //need this??
     output reg [DATA_WIDTH-1:0] o_data);
 
-    always @ (rflag_r)
+    always @ (i_read)
     begin
         case (i_addr)
             8'b00000000: o_data<= 8'b00000000;
@@ -72,10 +72,10 @@ endmodule
 //map to next state using ROM LUT
 module nextstable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 64) (
     input wire [ADDR_WIDTH-1:0] i_addr, 
-    input wire rflag_next,
+    input wire i_read,
     output reg [DATA_WIDTH-1:0] o_data);
 
-    always @ (rflag_next) 
+    always @ (i_read) 
     begin
         case (i_addr)
             8'b00000000: o_data<= 8'b00000000;
@@ -91,41 +91,44 @@ endmodule
 
 //The 4-stage (3-stage?) pipeline
 //inputs: state-action
-module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) (
-        input wire[7:0] alpha, input wire[7:0] gamma);
+module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, MULT = 16) (
+    input wire [5:0] s, //state
+    input wire [3:0] alpha,
+    input wire [3:0] gamma,
+    output reg [5:0] nexts); //define these parameters later
 
     //used in stage 1
     reg[7:0] q;
     reg[7:0] r;
     reg[7:0] qmax;
-    reg[7:0] oneminusa;
+    reg[7:0] oneminusa; //1-alpha
     reg[15:0] ag; //alpha*gamma
-    reg[5:0] s;
     reg[5:0] ends;
-    //reg[5:0] nexts; equal to data_out_next below
     reg[1:0] action;
     reg[1:0] numactions;
+    
     //used in stage 2
     reg[15:0] ar;
-    reg[15:0] oneminusa; //1-alpha
+    reg[15:0] oneminusaq; //(1-alpha)q
     reg[23:0] agqmax;
+    
     //used in stage 3
     reg [23:0] sum;
 
     reg clk;
-    //used for q table rflag_nexting & writing 
+    //used for q table reading & writing 
     reg [ADDR_WIDTH-1:0] addr_q;  
     reg wflag_q; //0 or 1
     reg [DATA_WIDTH-1:0] data_in_q;
     wire [DATA_WIDTH-1:0] data_out_q;
 
-    //used for qmax table rflag_nexting & writing
+    //used for qmax table reading & writing
     reg [ADDR_WIDTH-1:0] addr_qmax;
     reg wflag_qmax; //0 or 1
     reg [DATA_WIDTH-1:0] data_in_qmax;
     wire [DATA_WIDTH-1:0] data_out_qmax;
 
-    //used for r table rflag_nexting & writing
+    //used for r table reading
     reg [ADDR_WIDTH-1:0] addr_r;
     reg rflag_r; //0 or 1
     wire [DATA_WIDTH-1:0] data_out_r;
@@ -135,46 +138,38 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) (
     reg rflag_next;
     wire [DATA_WIDTH-1:0] data_out_next;
 
-    always begin
-        #5 clk = ~clk;  // timescale is 1ns so #5 provides 100MHz clock ?????? what clock frequency do we choose?
-    end
-
-    initial begin
-        s<=0;
-
-        //initialize all r(read) flags to 0, w(write) flags to??
-        //initialize q table, r table, qmax table
-        //------code here------????????????????
-    end
     //--------------stage 1-----------------
     always @(posedge clk) begin
 
         //Random action generator -> draws a
         action<=$urandom%4;
-        //locate and rflag_next Q value, reward from q and reward table
+        //locate Q value, reward from q and reward table
         //rflag_next from q table
-        addr_q<=s*numactions+a;
+        addr_q<=s*numactions+action; //{s,action}? save a multiplier?
         wflag_q<=0;
         q<=data_out_q;
         
-        //rflag_next from r table
-        addr_r<=s*numactions+a;
-        rflag_r<=0;
+        //reward from r table
+        addr_r<=s*numactions+action; //{s,action}? save a multiplier?
+        rflag_r<=1;
         r<=data_out_r;
 
+        //----------------------------------------------break into 2 stages?-------------------------------
         //locate next state nexts from nexts table:
-        addr_next<=s*numactions+a; //now data_out_next is next state, which will be used as address for looking up Qmax value
+        addr_next<=s*numactions+action; //{s,action}? save a multiplier?
+        rflag_next=1;//now data_out_next is next state, which will be used as address for looking up Qmax value
 
         //locate Qmax at next state from Qmax table
         addr_qmax<=data_out_next;
+        wflag_qmax<=0;
         qmax<=data_out_qmax;
-
+        //----------------------------------------------break into 2 stages?-------------------------------
         //calculate 1-a and a*g 
         ag <= alpha*gamma;
-        oneminusa <= 8'b0001_0000 - a;
+        oneminusa <= 8'b0001_0000 - alpha;
         
 
-        s<=nexts;
+        s<=data_out_next; //???????????how to feed state as input through the policy action order
 
         //if (s == ends) $finish 
     end     
@@ -182,8 +177,8 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) (
     //--------------stage 2-----------------
 
     // combine stage 2 and 3?
-    always @(qmax or r or q or ag or oneminusa) begin
-    //always @(posedge clk) begin???
+    //always @(qmax or r or q or ag or oneminusa) begin 
+    always @(posedge clk) begin
         //calculations of q learning function
         ar<=alpha*r;
         oneminusaq<=oneminusa*q;
@@ -191,8 +186,8 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) (
     end
 
     //--------------stage 3-----------------
-    always @(ar or agqmax or oneminusaq) begin
-    //always @(posedge clk) begin
+    //ways @(ar or agqmax or oneminusaq) begin
+    always @(posedge clk) begin
                 //adder
         sum <= ar + oneminusaq + agqmax;
         //end
@@ -200,8 +195,8 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) (
     end
 
     //--------------stage 4-----------------
-    always @(sum) begin
-    //always @(posedge clk) begin
+    //always @(sum) begin
+    always @(posedge clk) begin
 
 
         //write back to qmax table
@@ -213,7 +208,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) (
 
         //write back to q table
         wflag_q<=1;
-        addr_q<=s*numactions+a;
+        addr_q<=s*numactions+action; //or {s,action} ??
         data_in_q<=sum;
     end
 
@@ -233,12 +228,11 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) (
 
     rtable rt0(
         .i_addr(addr_r), 
-        .rflag_next(rflag_r), 
+        .i_read(rflag_r), 
         .o_data(data_out_r));
 
     nextstable next0(
         .i_addr(addr_next), 
-        .rflag_next(rflag_next), 
+        .i_read(rflag_next), 
         .o_data(data_out_next));
-
 endmodule
