@@ -52,10 +52,10 @@ endmodule
 //width depends on range of reward value, depth depends on number of states times num of actions
 module rtable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 256) (
     input wire [ADDR_WIDTH-1:0] i_addr, 
-    input wire read, //need this??
+    input wire rflag_r, //need this??
     output reg [DATA_WIDTH-1:0] o_data);
 
-    always @ (i_addr)
+    always @ (rflag_r)
     begin
         case (i_addr)
             8'b00000000: o_data<= 8'b00000000;
@@ -72,10 +72,10 @@ endmodule
 //map to next state using ROM LUT
 module nextstable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 64) (
     input wire [ADDR_WIDTH-1:0] i_addr, 
-    input wire read,
+    input wire rflag_next,
     output reg [DATA_WIDTH-1:0] o_data);
 
-    always @ (i_addr) 
+    always @ (rflag_next) 
 	begin
         case (i_addr)
             8'b00000000: o_data<= 8'b00000000;
@@ -102,7 +102,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8,  = 16) (
     reg[15:0] ag; //alpha*gamma
     reg[5:0] s;
     reg[5:0] ends;
-    //reg[5:0] nexts; equal to data_outnext below
+    //reg[5:0] nexts; equal to data_out_next below
     reg[1:0] action;
     //used in stage 2
     reg[15:0] ar;
@@ -112,27 +112,27 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8,  = 16) (
     reg [23:0] sum;
 
     reg clk;
-    //used for q table reading & writing 
-    reg [ADDR_WIDTH-1:0] addrq;  
-    reg wflagq; //0 or 1
-    reg [DATA_WIDTH-1:0] data_inq;
-    wire [DATA_WIDTH-1:0] data_outq;
+    //used for q table rflag_nexting & writing 
+    reg [ADDR_WIDTH-1:0] addr_q;  
+    reg wflag_q; //0 or 1
+    reg [DATA_WIDTH-1:0] data_in_q;
+    wire [DATA_WIDTH-1:0] data_out_q;
 
-    //used for qmax table reading & writing
-    reg [ADDR_WIDTH-1:0] addrqmax;
-    reg wflagqmax; //0 or 1
-    reg [DATA_WIDTH-1:0] data_inqmax;
-    wire [DATA_WIDTH-1:0] data_outqmax;
+    //used for qmax table rflag_nexting & writing
+    reg [ADDR_WIDTH-1:0] addr_qmax;
+    reg wflag_qmax; //0 or 1
+    reg [DATA_WIDTH-1:0] data_in_qmax;
+    wire [DATA_WIDTH-1:0] data_out_qmax;
 
-    //used for r table reading & writing
-    reg [ADDR_WIDTH-1:0] addrr;
-    reg wflagr; //0 or 1
-    wire [DATA_WIDTH-1:0] data_outr;
+    //used for r table rflag_nexting & writing
+    reg [ADDR_WIDTH-1:0] addr_r;
+    reg rflag_r; //0 or 1
+    wire [DATA_WIDTH-1:0] data_out_r;
 
     //used for finding next state
-    reg [ADDR_WIDTH-1:0] addrnext;
-    reg read;
-    wire [DATA_WIDTH-1:0] data_outnext;
+    reg [ADDR_WIDTH-1:0] addr_next;
+    reg rflag_next;
+    wire [DATA_WIDTH-1:0] data_out_next;
 
     always begin
         #5 clk = ~clk;  // timescale is 1ns so #5 provides 100MHz clock ?????? what clock frequency do we choose?
@@ -141,6 +141,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8,  = 16) (
     initial begin
         s<=0;
 
+        //initialize all r(read) flags to 0, w(write) flags to??
         //initialize q table, r table, qmax table
         //------code here------????????????????
     end
@@ -149,23 +150,23 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8,  = 16) (
 
         //Random action generator -> draws a
         action<=$urandom%4;
-        //locate and read Q value, reward from q and reward table
-        //read from q table
-        addrq<=s*numactions+a;
-        wflagq<=0;
-        q<=data_outq;
+        //locate and rflag_next Q value, reward from q and reward table
+        //rflag_next from q table
+        addr_q<=s*numactions+a;
+        wflag_q<=0;
+        q<=data_out_q;
         
-        //read from r table
-        addrr<=s*numactions+a;
-        wflagr<=0;
-        r<=data_outr;
+        //rflag_next from r table
+        addr_r<=s*numactions+a;
+        rflag_r<=0;
+        r<=data_out_r;
 
         //locate next state nexts from nexts table:
-        addrnext<=s*numactions+a; //now data_outnext is next state, which will be used as address for looking up Qmax value
+        addr_next<=s*numactions+a; //now data_out_next is next state, which will be used as address for looking up Qmax value
 
         //locate Qmax at next state from Qmax table
-        addrqmax<=data_outnext;
-        qmax<=data_outqmax;
+        addr_qmax<=data_out_next;
+        qmax<=data_out_qmax;
 
         //calculate 1-a and a*g 
         ag <= alpha*gamma;
@@ -201,36 +202,42 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8,  = 16) (
     always @(sum) begin
     //always @(posedge clk) begin
 
-        //write back to q table
 
         //write back to qmax table
+        if (sum>q)begin
+        	wflag_qmax<=1;
+        	addr_qmax<=s;
+        	data_in_qmax<=sum;
+        end;
 
-        //state <- 
-
+        //write back to q table
+        wflag_q<=1;
+        addr_q<=s*numactions+a;
+        data_in_q<=sum;
     end
 
     qtable #(.ADDR_WIDTH (8), .DATA_WIDTH(8), .DEPTH(256) qt0(
         .i_clk(clk), 
-        .i_addr(addrq), 
-        .i_write(wflagq), 
-        .i_data(data_inq),
-        .o_data(data_outq));
+        .i_addr(addr_q), 
+        .i_write(wflag_q), 
+        .i_data(data_in_q),
+        .o_data(data_out_q));
 
     qmaxtable #(.ADDR_WIDTH (8), .DATA_WIDTH(8), .DEPTH(256) qt0(
         .i_clk(clk), 
-        .i_addr(addrr), 
-        .i_write(wflagqmax), 
-        .i_data(data_inqmax),
-        .o_data(data_outqmax));
+        .i_addr(addr_r), 
+        .i_write(wflag_qmax), 
+        .i_data(data_in_qmax),
+        .o_data(data_out_qmax));
 
     rtable #(.ADDR_WIDTH (8), .DATA_WIDTH(8), .DEPTH(256) qt0(
-        .i_addr(addrr), 
-        .read(wflagr), 
-        .o_data(data_outr));
+        .i_addr(addr_r), 
+        .rflag_next(rflag_r), 
+        .o_data(data_out_r));
 
     nextstable #(.ADDR_WIDTH (8), .DATA_WIDTH(8), .DEPTH(256) qt0(
-        .i_addr(addrnext), 
-        .read(read), 
-        .o_data(data_outnext));
+        .i_addr(addr_next), 
+        .rflag_next(rflag_next), 
+        .o_data(data_out_next));
 
 endmodule
