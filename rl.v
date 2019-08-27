@@ -52,7 +52,7 @@ endmodule
 //width depends on range of reward value, depth depends on number of states times num of actions
 module rtable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 256) (
     input wire [ADDR_WIDTH-1:0] i_addr, 
-    input wire rflag_r, //need this??
+    input wire i_read, //need this??
     output reg [DATA_WIDTH-1:0] o_data);
 
     always @ (rflag_r)
@@ -72,7 +72,7 @@ endmodule
 //map to next state using ROM LUT
 module nextstable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 64) (
     input wire [ADDR_WIDTH-1:0] i_addr, 
-    input wire rflag_next,
+    input wire i_read,
     output reg [DATA_WIDTH-1:0] o_data);
 
     always @ (rflag_next) 
@@ -232,12 +232,12 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8,  = 16) (
 
     rtable #(.ADDR_WIDTH (8), .DATA_WIDTH(8), .DEPTH(256) qt0(
         .i_addr(addr_r), 
-        .rflag_next(rflag_r), 
+        .i_read(rflag_r), 
         .o_data(data_out_r));
 
     nextstable #(.ADDR_WIDTH (8), .DATA_WIDTH(8), .DEPTH(256) qt0(
         .i_addr(addr_next), 
-        .rflag_next(rflag_next), 
+        .i_read(rflag_next), 
         .o_data(data_out_next));
 
 endmodule
