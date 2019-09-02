@@ -1,17 +1,41 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 09/02/2019 10:53:28 AM
+// Design Name: 
+// Module Name: pipeline
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+
 //store tables in BRAMs
 //width depends on range of q value, depth depends on number of states times num of actions
 
 //The 4-stage (3-stage?) pipeline
 //inputs: state-action
-module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input clk, input[7:0] alpha, input[7:0] gamma);
+module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input clk,output[23:0] sum);
 
     //used in stage 1
+    real alpha=0.1;
+    real gamma=0.1;
     reg[7:0] q; //q value
     reg[7:0] r; //reward
     reg[7:0] qmax;
     reg[7:0] oneminusa; //1-alpha
     reg[15:0] ag; //alpha*gamma
-    reg[5:0] s ; //2^6 possible states (8x8 grid, s[5:3]s -> x, s[2:0] -> y)
+    reg[5:0] s ; //2^6 possible states (8x8 (x,y) grid, s[5:3]s -> x, s[2:0] -> y)
     reg[5:0] current_s ;
     reg[2:0] sx ; // s[5:3]s -> x, 
     reg[2:0] sy ; // s[2:0] -> y)
@@ -24,36 +48,52 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
     //used in stage 3
     reg [23:0] sum;
 
-    //used for q table rflag_nexting & writing 
+    //used in stage 1 and 4
+    //used for q table reading & writing 
     reg [ADDR_WIDTH-1:0] addrr_q;  
     reg [ADDR_WIDTH-1:0] addrw_q;
     reg wflag_q; //0 or 1
     reg [DATA_WIDTH-1:0] data_in_q;
     wire [DATA_WIDTH-1:0] data_out_q;
 
-    //used for qmax table rflag_nexting & writing
+    //used for qmax table reading & writing
     reg [ADDR_WIDTH-1:0] addrr_qmax;
     reg [ADDR_WIDTH-1:0] addrw_qmax;
     reg wflag_qmax; //0 or 1
     reg [DATA_WIDTH-1:0] data_in_qmax;
     wire [DATA_WIDTH-1:0] data_out_qmax;
 
-    //used for r table rflag_nexting & writing
+    //used for r table reading
     reg [ADDR_WIDTH-1:0] addr_r;
     reg rflag_r; //0 or 1
     wire [DATA_WIDTH-1:0] data_out_r;
 
-    //used for finding next state
+    /*used for finding next state
     reg [ADDR_WIDTH-1:0] addr_next;
     reg rflag_next;
-    wire [DATA_WIDTH-1:0] data_out_next;
+    wire [DATA_WIDTH-1:0] data_out_next;*/
 
     ///initial begin
+    initial begin 
+        s<=6'b000000;
+        addrr_q<=8'b00000000;
+        wflag_q<=0;
+        addrr_qmax<=8'b00000000;
+        wflag_qmax<=0;
+        addr_r<=8'b00000000;
+        q<=0;
+        r<=0;
+        
+        current_s<=6'b000000;
+        nexts<=6'b000000;
+        $display("addrr_q_initial:0x%02h,s_initial:0x%06b", addrr_q,s);
+    end
     //--------------stage 1-----------------
     always @(posedge clk) begin
 
         //Random action generator -> draws a
         action<=$urandom%4;
+        $display("stage 1 state,0x%06b", s);
         sx<=s[5:3];sy<=s[2:0];
         //locate next state 
         if (s[2:0]==3'b000 && action==2'b00) begin //left wall 
@@ -81,11 +121,13 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         
         //locate q value from q table, save in q register
         addrr_q<={s,action}; 
+        $display("stage 1 s:0x%06b, action:0x%02b, addrr_q,0x%08b", s,action,addrr_q);
         wflag_q<=0;
         q<=data_out_q;
+        $display("stage 1 q,0x%02h\n", q);
         
         //locate reward from r table
-        addr_r<={s,action}; 
+        addr_r<=s; 
         rflag_r<=1;
         r<=data_out_r;
 

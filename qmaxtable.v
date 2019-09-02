@@ -1,3 +1,4 @@
+`timescale 1ns / 1ps
 //qmax values stored on BRAM
 //width depends on range of q value, depth depends on number of states 
 module qmaxtable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 256) (
@@ -15,7 +16,7 @@ module qmaxtable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 256) (
     initial begin
      memory_array[0] <= 0;
         for (i=0;i<DEPTH;i=i+1) begin
-            memory_array[i] <= i;
+            memory_array[i] <= 8'b0000_0000;
         end
      //$readmemb("C:\Users\myuan\Desktop\q-learning-accel-fpga\qt_mem_init.txt",memory_array);
     end
