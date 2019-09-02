@@ -75,7 +75,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
 
     ///initial begin
     initial begin 
-        s<=6'b000000;
+        s<=6'b100_001;
         addrr_q<=8'b00000000;
         wflag_q<=0;
         addrr_qmax<=8'b00000000;
@@ -86,45 +86,45 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         
         current_s<=6'b000000;
         nexts<=6'b000000;
-        $display("addrr_q_initial:0x%02h,s_initial:0x%06b", addrr_q,s);
+        $display("addrr_q_initial: 0x%02h,s_initial:0x%06b", addrr_q,s);
     end
     //--------------stage 1-----------------
     always @(posedge clk) begin
 
         //Random action generator -> draws a
         action<=$urandom%4;
-        $display("stage 1 state,0x%06b", s);
+        $display("stage 1 state: 0x%06b", s);
         sx<=s[5:3];sy<=s[2:0];
         //locate next state 
-        if (s[2:0]==3'b000 && action==2'b00) begin //left wall 
+        if (sy==3'b000 && action==2'b00) begin //left wall 
             nexts<=s;
         end
-        else if (s[5:3]==3'b000 && action==2'b01) begin //up wall
+        else if (sx==3'b000 && action==2'b01) begin //up wall
             nexts<=s;      
         end
-        else if (s[2:0]==3'b111 && action==2'b10) begin //right wall
+        else if (sy==3'b111 && action==2'b10) begin //right wall
             nexts<=s;      
         end
-        else if (s[5:3]==3'b111 && action==2'b11) begin //down wall
+        else if (sx==3'b111 && action==2'b11) begin //down wall
             nexts<=s;     
         end
         else begin
             case (action)
-                2'b00: sx<=sx-3'b001;//to the left by 1
-                2'b01: sy<=sy-3'b001;//to the up by 1
-                2'b10: sx<=sx+3'b001;//to the right by 1
-                2'b11: sy<=sy+3'b001;//to the down by 1
+                2'b00: nexts<=nexts-6'b001000;//to the left by 1
+                2'b01: nexts<=nexts-6'b000001;//to the up by 1
+                2'b10: nexts<=nexts+6'b001000;//to the right by 1
+                2'b11: nexts<=nexts+6'b000001;//to the down by 1
             //default:
             endcase
-            nexts<={sx,sy};
+            //nexts<={sx,sy};
         end
         
         //locate q value from q table, save in q register
         addrr_q<={s,action}; 
-        $display("stage 1 s:0x%06b, action:0x%02b, addrr_q,0x%08b", s,action,addrr_q);
+        $display("stage 1 s: 0x%06b, action:0x%02b, addrr_q,0x%08b", s,action,addrr_q);
         wflag_q<=0;
         q<=data_out_q;
-        $display("stage 1 q,0x%02h\n", q);
+        $display("stage 1 q: 0x%02h", q);
         
         //locate reward from r table
         addr_r<=s; 
@@ -150,6 +150,8 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         addrr_qmax<=nexts;
         wflag_qmax<=0;
         qmax<=data_out_qmax;
+        $display("stage 2 nexts: 0x%02h", nexts);
+        $display("stage 2 qmax: 0x%02h", qmax);
     end
     
     //--------------stage 3-----------------
@@ -158,6 +160,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         //calculations of q learning function
                 //adder
         sum <= alpha*r + oneminusa*q + ag*qmax;
+        $display("stage 3 sum: 0x%02h", sum);
         //end
 
     end
@@ -170,11 +173,15 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
             wflag_qmax<=1;
             addrw_qmax<={current_s,action};
             data_in_qmax<=sum;
+            $display("stage 4 update qmax data_in_qmax: 0x%02h", data_in_qmax);
+            $display("stage 4 update qmax addrw_qmax: 0x%02h", addrw_qmax);
         end
         //write back to q table
         wflag_q<=1;
         addrr_q<={current_s,action}; 
         data_in_q<=sum;
+        $display("stage 4 update q data_in_q: 0x%02h", data_in_q);
+        $display("stage 4 update q addrw_q: 0x%02h\n", addrw_q);
     end
         
     qtable qt0(
