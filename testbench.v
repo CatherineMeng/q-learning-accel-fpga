@@ -1,20 +1,24 @@
-module pipeline_testbench  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ();
 
-    always begin
-        #5 clk = ~clk;  // timescale is 1ns so #5 provides 100MHz clock ?????? what clock frequency do we choose?
-    end
+module tb( );
+  reg i_clk;
+  reg[7:0] alpha_in;
+  reg[7:0] gamma_in;
 
     initial begin
-        s<=0;
-
-        clk=1;
-
-        //initialize all r(read) flags to 0, w(write) flags to??
-        //initialize q table, r table, qmax table
-        //--------------code here-----------????????????????
+        i_clk=1;
+        alpha_in=8'b0000_0001;
+        gamma_in=8'b0000_0001;
     end
-
-
-
+    
+    always begin 
+    #5 i_clk=~i_clk;
+    end
+     
+    pipeline test(
+    .clk(i_clk),
+    //.cina(ina),
+    //.cinb(inb),
+    .alpha(alpha_in),
+    .gamma(gamma_in));
 
 endmodule
