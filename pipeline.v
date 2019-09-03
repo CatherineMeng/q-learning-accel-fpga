@@ -28,8 +28,8 @@
 module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input clk,output[23:0] sum);
 
     //used in stage 1
-    real alpha=0.1;
-    real gamma=0.1;
+    reg[7:0] alpha; //xxxx.xxxx 0000_0010=0.125, fixed point representation for alpha and gamma
+    reg[7:0] gamma;
     reg[7:0] q; //q value
     reg[7:0] r; //reward
     reg[7:0] qmax;
@@ -93,7 +93,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
 
         //Random action generator -> draws a
         action<=$urandom%4;
-        $display("stage 1 state: 0x%06b", s);
+        //$display("stage 1 state: 0x%06b", s);
         sx<=s[5:3];sy<=s[2:0];
         //locate next state 
         if (sy==3'b000 && action==2'b00) begin //left wall 
@@ -121,7 +121,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         
         //locate q value from q table, save in q register
         addrr_q<={s,action}; 
-        $display("stage 1 s: 0x%06b, action:0x%02b, addrr_q,0x%08b", s,action,addrr_q);
+        $display("stage 1 s,action,addr_q: 0x%06b, action:0x%02b, addrr_q,0x%08b", s,action,addrr_q);
         wflag_q<=0;
         q<=data_out_q;
         $display("stage 1 q: 0x%02h", q);
@@ -131,6 +131,8 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         rflag_r<=1;
         r<=data_out_r;
 
+        alpha<=8'b0000_0010;
+        gamma<=8'b0000_0010;//scaling factor=2.0**-4.0
         //calculate 1-a and a*g 
         ag <= alpha*gamma;
         oneminusa <= 8'b0001_0000 - alpha;
@@ -150,7 +152,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         addrr_qmax<=nexts;
         wflag_qmax<=0;
         qmax<=data_out_qmax;
-        $display("stage 2 nexts: 0x%02h", nexts);
+        $display("stage 2 nexts: 0x%06b", nexts);
         $display("stage 2 qmax: 0x%02h", qmax);
     end
     
@@ -160,7 +162,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         //calculations of q learning function
                 //adder
         sum <= alpha*r + oneminusa*q + ag*qmax;
-        $display("stage 3 sum: 0x%02h", sum);
+        $display("stage 3 sum: 0x%04h", sum);
         //end
 
     end
