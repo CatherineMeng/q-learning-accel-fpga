@@ -50,15 +50,15 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
 
     //used in stage 1 and 4
     //used for q table reading & writing 
-    reg [ADDR_WIDTH-1:0] addrr_q;  
-    reg [ADDR_WIDTH-1:0] addrw_q;
+    reg [7:0] addrr_q;  
+    reg [7:0] addrw_q;
     reg wflag_q; //0 or 1
     reg [DATA_WIDTH-1:0] data_in_q;
     wire [DATA_WIDTH-1:0] data_out_q;
 
     //used for qmax table reading & writing
-    reg [ADDR_WIDTH-1:0] addrr_qmax;
-    reg [ADDR_WIDTH-1:0] addrw_qmax;
+    reg [5:0] addrr_qmax;
+    reg [5:0] addrw_qmax;
     reg wflag_qmax; //0 or 1
     reg [DATA_WIDTH-1:0] data_in_qmax;
     wire [DATA_WIDTH-1:0] data_out_qmax;
@@ -78,7 +78,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         s<=6'b100_001;
         addrr_q<=8'b00000000;
         wflag_q<=0;
-        addrr_qmax<=8'b00000000;
+        addrr_qmax<=6'b000000;
         wflag_qmax<=0;
         addr_r<=8'b00000000;
         q<=0;
@@ -173,14 +173,14 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         //write back to qmax table
         if (sum>q)begin
             wflag_qmax<=1;
-            addrw_qmax<={current_s,action};
+            addrw_qmax<=current_s;
             data_in_qmax<=sum;
             $display("stage 4 update qmax data_in_qmax: 0x%02h", data_in_qmax);
-            $display("stage 4 update qmax addrw_qmax: 0x%02h", addrw_qmax);
+            $display("stage 4 update qmax addrw_qmax: 0x%06b", addrw_qmax);
         end
         //write back to q table
         wflag_q<=1;
-        addrr_q<={current_s,action}; 
+        addrw_q<={current_s,action}; 
         data_in_q<=sum;
         $display("stage 4 update q data_in_q: 0x%02h", data_in_q);
         $display("stage 4 update q addrw_q: 0x%02h\n", addrw_q);

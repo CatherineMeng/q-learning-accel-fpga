@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //qmax values stored on BRAM
 //width depends on range of q value, depth depends on number of states 
-module qmaxtable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 256) (
+module qmaxtable #(parameter ADDR_WIDTH = 6, DATA_WIDTH = 8, DEPTH = 64) (
     input wire i_clk,
     input wire [ADDR_WIDTH-1:0] i_addr_r, 
     input wire [ADDR_WIDTH-1:0] i_addr_w, 
