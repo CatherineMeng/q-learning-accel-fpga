@@ -52,6 +52,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
     //used for q table reading & writing 
     reg [7:0] addrr_q;  
     reg [7:0] addrw_q;
+    reg rflag_q; //0 or 1
     reg wflag_q; //0 or 1
     reg [DATA_WIDTH-1:0] data_in_q;
     wire [DATA_WIDTH-1:0] data_out_q;
@@ -59,6 +60,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
     //used for qmax table reading & writing
     reg [5:0] addrr_qmax;
     reg [5:0] addrw_qmax;
+    reg rflag_qmax; //0 or 1
     reg wflag_qmax; //0 or 1
     reg [DATA_WIDTH-1:0] data_in_qmax;
     wire [DATA_WIDTH-1:0] data_out_qmax;
@@ -122,7 +124,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         //locate q value from q table, save in q register
         addrr_q<={s,action}; 
         $display("stage 1 s,action,addr_q: 0x%06b, action:0x%02b, addrr_q,0x%08b", s,action,addrr_q);
-        wflag_q<=0;
+        rflag_q<=1;
         q<=data_out_q;
         $display("stage 1 q: 0x%02h", q);
         
@@ -150,7 +152,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
     always @(posedge clk) begin
         //locate Qmax at next state from Qmax table
         addrr_qmax<=nexts;
-        wflag_qmax<=0;
+        rflag_qmax<=1;
         qmax<=data_out_qmax;
         $display("stage 2 nexts: 0x%06b", nexts);
         $display("stage 2 qmax: 0x%02h", qmax);
@@ -189,7 +191,8 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
     qtable qt0(
         .i_clk(clk),
         .i_addr_r(addrr_q), 
-        .i_addr_w(addrw_q), 
+        .i_addr_w(addrw_q),
+        .i_read_en(rflag_q), 
         .i_write_en(wflag_q),
         .i_data(data_in_q),
         .o_data(data_out_q)); 
@@ -198,6 +201,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         .i_clk(clk),
         .i_addr_r(addrr_qmax), 
         .i_addr_w(addrw_qmax), 
+        .i_read_en(rflag_qmax),
         .i_write_en(wflag_qmax),
         .i_data(data_in_qmax),
         .o_data(data_out_qmax)); 

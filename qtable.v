@@ -6,6 +6,7 @@ module qtable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 256) (
     input wire i_clk,
     input wire [ADDR_WIDTH-1:0] i_addr_r, 
     input wire [ADDR_WIDTH-1:0] i_addr_w, 
+    input wire i_read_en,
     input wire i_write_en,
     input wire [DATA_WIDTH-1:0] i_data,
     output reg [DATA_WIDTH-1:0] o_data
@@ -27,8 +28,8 @@ module qtable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 256) (
             if(i_write_en) begin
                 memory_array[i_addr_w] <= i_data;
             end
-            //else begin
+            if(i_read_en) begin
                 o_data <= memory_array[i_addr_r];
-            //end     
+            end     
     end
 endmodule 
