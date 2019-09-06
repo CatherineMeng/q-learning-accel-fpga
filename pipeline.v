@@ -88,7 +88,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         
         current_s<=6'b000000;
         nexts<=6'b000000;
-        $display("addrr_q_initial: 0x%02h,s_initial:0x%06b", addrr_q,s);
+        $display("addrr_q_initial: %02h,s_initial:%06b", addrr_q,s);
     end
     //--------------stage 1-----------------
     always @(posedge clk) begin
@@ -123,15 +123,17 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         
         //locate q value from q table, save in q register
         addrr_q<={s,action}; 
-        $display("stage 1 s,action,addr_q: 0x%06b, action:0x%02b, addrr_q,0x%08b", s,action,addrr_q);
+        $display("stage 1 s: %06b, action:%02b, addrr_q,%08b", s,action,addrr_q);
         rflag_q<=1;
         q<=data_out_q;
-        $display("stage 1 q: 0x%02h", q);
+        $display("stage 1 q: %02h", q);
         
         //locate reward from r table
-        addr_r<=s; 
+        addr_r<={s,action}; 
+        $display("stage 1 addr_r: %02h", addr_r);
         rflag_r<=1;
         r<=data_out_r;
+        $display("stage 1 r: %02h", r);
 
         alpha<=8'b0000_0010;
         gamma<=8'b0000_0010;//scaling factor=2.0**-4.0
@@ -154,8 +156,9 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         addrr_qmax<=nexts;
         rflag_qmax<=1;
         qmax<=data_out_qmax;
-        $display("stage 2 nexts: 0x%06b", nexts);
-        $display("stage 2 qmax: 0x%02h", qmax);
+        $display("stage 2 nexts: %06b", nexts);
+        $display("stage 2 addrr_qmax: %06b", addrr_qmax);
+        $display("stage 2 qmax: %02h", qmax);
     end
     
     //--------------stage 3-----------------
@@ -164,7 +167,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         //calculations of q learning function
                 //adder
         sum <= alpha*r + oneminusa*q + ag*qmax;
-        $display("stage 3 sum: 0x%04h", sum);
+        $display("stage 3 sum: %04h", sum);
         //end
 
     end
@@ -177,15 +180,15 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
             wflag_qmax<=1;
             addrw_qmax<=current_s;
             data_in_qmax<=sum;
-            $display("stage 4 update qmax data_in_qmax: 0x%02h", data_in_qmax);
-            $display("stage 4 update qmax addrw_qmax: 0x%06b", addrw_qmax);
+            $display("stage 4 update qmax data_in_qmax: %02h", data_in_qmax);
+            $display("stage 4 update qmax addrw_qmax: %06b", addrw_qmax);
         end
         //write back to q table
         wflag_q<=1;
         addrw_q<={current_s,action}; 
         data_in_q<=sum;
-        $display("stage 4 update q data_in_q: 0x%02h", data_in_q);
-        $display("stage 4 update q addrw_q: 0x%02h\n", addrw_q);
+        $display("stage 4 update q data_in_q: %02h", data_in_q);
+        $display("stage 4 update q addrw_q: %02h\n", addrw_q);
     end
         
     qtable qt0(
