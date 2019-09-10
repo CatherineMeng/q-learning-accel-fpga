@@ -27,9 +27,11 @@ module qtable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 256) (
     begin
             if(i_write_en) begin
                 memory_array[i_addr_w] <= i_data;
+                $display("q written %02h in: %08b", i_data, i_addr_w);
             end
             if(i_read_en) begin
                 o_data <= memory_array[i_addr_r];
+                $display("q read %02h from: %08b", o_data, i_addr_r);
             end     
     end
 endmodule 

@@ -26,9 +26,11 @@ module qmaxtable #(parameter ADDR_WIDTH = 6, DATA_WIDTH = 8, DEPTH = 64) (
     begin
             if(i_write_en) begin
                 memory_array[i_addr_w] <= i_data;
+                $display("qmax written %02h in: %06b", i_data, i_addr_w);
             end
             if(i_read_en) begin
                 o_data <= memory_array[i_addr_r];
+                $display("qmax read %02h from: %06b\n", o_data, i_addr_r);
             end     
     end
 endmodule 

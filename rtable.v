@@ -78,4 +78,3 @@ module rtable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 256) (
         endcase    
     end
 endmodule
-

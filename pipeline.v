@@ -25,7 +25,7 @@
 
 //The 4-stage (3-stage?) pipeline
 //inputs: state-action
-module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input clk,output[23:0] sum);
+module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input clk,input ce,output[23:0] sum);
 
     //used in stage 1
     reg[7:0] alpha; //xxxx.xxxx 0000_0010=0.125, fixed point representation for alpha and gamma
@@ -37,8 +37,13 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
     reg[15:0] ag; //alpha*gamma
     reg[5:0] s ; //2^6 possible states (8x8 (x,y) grid, s[5:3]s -> x, s[2:0] -> y)
     reg[5:0] current_s ;
+    reg[5:0] current_s1 ;
+    reg[5:0] current_s2 ;
+    reg[5:0] current_s3 ;
+    reg[5:0] current_s4 ;
+    
     reg[2:0] sx ; // s[5:3]s -> x, 
-    reg[2:0] sy ; // s[2:0] -> y)
+    reg[2:0] sy ; // s[2:0]   -> y)
     //reg[5:0] ends; //end state assiume 111111(8,8)
     reg[5:0] nexts; //next state for state transition
     reg[1:0] action; //2^2 possible actions 00->left 01->up 10->right 11->dowm
@@ -52,6 +57,8 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
     //used for q table reading & writing 
     reg [7:0] addrr_q;  
     reg [7:0] addrw_q;
+    //reg [7:0] addrr_q_tmp;
+    //reg [7:0] addr_r_tmp;
     reg rflag_q; //0 or 1
     reg wflag_q; //0 or 1
     reg [DATA_WIDTH-1:0] data_in_q;
@@ -77,27 +84,30 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
 
     ///initial begin
     initial begin 
-        s<=6'b100_001;
-        addrr_q<=8'b00000000;
-        wflag_q<=0;
-        addrr_qmax<=6'b000000;
-        wflag_qmax<=0;
-        addr_r<=8'b00000000;
-        q<=0;
-        r<=0;
-        
+        s<=6'b000_000;
         current_s<=6'b000000;
         nexts<=6'b000000;
-        $display("addrr_q_initial: %02h,s_initial:%06b", addrr_q,s);
+        wflag_q<=0;
+        wflag_qmax<=0;
+        rflag_q<=0;
+        rflag_qmax<=0;
+
     end
     //--------------stage 1-----------------
     always @(posedge clk) begin
+        //if(ce) begin
 
         //Random action generator -> draws a
         action<=$urandom%4;
-        //$display("stage 1 state: 0x%06b", s);
-        sx<=s[5:3];sy<=s[2:0];
-        //locate next state 
+        //calculate 1-a and a*g 
+        alpha<=8'b0000_0010;
+        gamma<=8'b0000_0010;
+        //scaling factor=2.0**-4.0 _
+        ag <= alpha*gamma;
+        oneminusa <= 8'b0001_0000 - alpha;        
+        
+        //locate next state
+        sx<=s[5:3];sy<=s[2:0]; 
         if (sy==3'b000 && action==2'b00) begin //left wall 
             nexts<=s;
         end
@@ -112,69 +122,69 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         end
         else begin
             case (action)
-                2'b00: nexts<=nexts-6'b001000;//to the left by 1
-                2'b01: nexts<=nexts-6'b000001;//to the up by 1
-                2'b10: nexts<=nexts+6'b001000;//to the right by 1
-                2'b11: nexts<=nexts+6'b000001;//to the down by 1
+                2'b00: nexts<=s-6'b001000;//to the left by 1
+                2'b01: nexts<=s-6'b000001;//to the up by 1
+                2'b10: nexts<=s+6'b001000;//to the right by 1
+                2'b11: nexts<=s+6'b000001;//to the down by 1
             //default:
             endcase
             //nexts<={sx,sy};
         end
         
-        //locate q value from q table, save in q register
-        addrr_q<={s,action}; 
-        $display("stage 1 s: %06b, action:%02b, addrr_q,%08b", s,action,addrr_q);
-        rflag_q<=1;
-        q<=data_out_q;
-        $display("stage 1 q: %02h", q);
-        
-        //locate reward from r table
-        addr_r<={s,action}; 
-        $display("stage 1 addr_r: %02h", addr_r);
-        rflag_r<=1;
-        r<=data_out_r;
-        $display("stage 1 r: %02h", r);
+        //get address for q and r and qmax
 
-        alpha<=8'b0000_0010;
-        gamma<=8'b0000_0010;//scaling factor=2.0**-4.0
-        //calculate 1-a and a*g 
-        ag <= alpha*gamma;
-        oneminusa <= 8'b0001_0000 - alpha;
+        addrr_q<={s,action}; 
+        addr_r<={s,action};
+        addrr_qmax<=nexts;
+        $display("stage 1 s: %06b, action:%02b", s,action);
+        $display("stage 1 nexts: %06b", nexts);
+        $display("stage 1 addrr_q:%08b, addr_r:%08b, addr_qmax:%06b", addrr_q,addr_r,addrr_qmax);
         
-        //stop the pipeline if reached end state
-        if (s == 6'b111111) begin
-            $finish;
-        end 
         //wait and transit the state
         current_s<=s;
-        #5 s<=nexts; //dont know how long but I'll make it 5ns wait
-    end     
+        #10  s<=nexts; //dont know how long but I'll make it 5ns wait
+    //end  
+    end   
     
     //--------------stage 2-----------------
     always @(posedge clk) begin
+    //if(ce) begin
+    //locate q value from q table, save in q register
+   // $display("stage 2 s: %06b,current_s: %06b, action:%02b, addrr_q,%08b", s,current_s,action,addrr_q);
+        rflag_q<=1;
+        q<=data_out_q;
+        
+        rflag_r<=1;
+        r<=data_out_r;
+        $display("stage 2 r: %02h", r);
+        $display("stage 2 q: %02h", q);
         //locate Qmax at next state from Qmax table
-        addrr_qmax<=nexts;
+        
         rflag_qmax<=1;
         qmax<=data_out_qmax;
-        $display("stage 2 nexts: %06b", nexts);
-        $display("stage 2 addrr_qmax: %06b", addrr_qmax);
+        //$display("stage 2 nexts: %06b", nexts);
+        //$display("stage 2 addrr_qmax: %06b", addrr_qmax);
         $display("stage 2 qmax: %02h", qmax);
+   // end
     end
     
     //--------------stage 3-----------------
     //always @(qmax or r or q or ag or oneminusa) begin 
     always @(posedge clk) begin
+    //if(ce) begin
         //calculations of q learning function
                 //adder
         sum <= alpha*r + oneminusa*q + ag*qmax;
         $display("stage 3 sum: %04h", sum);
         //end
 
+    //end
     end
 
     //--------------stage 4-----------------
     //always @(sum) begin
     always @(posedge clk) begin
+   // if(ce) begin
         //write back to qmax table
         if (sum>q)begin
             wflag_qmax<=1;
@@ -188,7 +198,13 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         addrw_q<={current_s,action}; 
         data_in_q<=sum;
         $display("stage 4 update q data_in_q: %02h", data_in_q);
-        $display("stage 4 update q addrw_q: %02h\n", addrw_q);
+        $display("stage 4 update q addrw_q: %08b", addrw_q);
+                //stop the pipeline if reached end state
+                wflag_q<=1;
+        if (current_s == 6'b111111) begin
+            $finish;
+        end
+    //end
     end
         
     qtable qt0(
