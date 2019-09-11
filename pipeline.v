@@ -7,7 +7,7 @@
 // Design Name: 
 // Module Name: pipeline
 // Project Name: 
-// Target Devices: 
+// Target Devices:  
 // Tool Versions: 
 // Description: 
 // 
@@ -25,33 +25,42 @@
 
 //The 4-stage (3-stage?) pipeline
 //inputs: state-action
-module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input clk,input ce,output[23:0] sum);
+module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input clk,input rst, input[1:0] action,output reg[23:0] sum);
 
     //used in stage 1
     reg[7:0] alpha; //xxxx.xxxx 0000_0010=0.125, fixed point representation for alpha and gamma
     reg[7:0] gamma;
     reg[7:0] q; //q value
     reg[7:0] r; //reward
+    reg[7:0] q1; //q value
+    reg[7:0] r1; //reward
     reg[7:0] qmax;
     reg[7:0] oneminusa; //1-alpha
     reg[15:0] ag; //alpha*gamma
     reg[5:0] s ; //2^6 possible states (8x8 (x,y) grid, s[5:3]s -> x, s[2:0] -> y)
+
+    //propagate for qmax writing address
     reg[5:0] current_s ;
     reg[5:0] current_s1 ;
     reg[5:0] current_s2 ;
     reg[5:0] current_s3 ;
-    reg[5:0] current_s4 ;
+        
+    //propagate for q writing address
+    reg[1:0] current_a ;
+    reg[1:0] current_a1 ;
+    reg[1:0] current_a2 ;
+    reg[1:0] current_a3 ;
     
     reg[2:0] sx ; // s[5:3]s -> x, 
     reg[2:0] sy ; // s[2:0]   -> y)
     //reg[5:0] ends; //end state assiume 111111(8,8)
     reg[5:0] nexts; //next state for state transition
-    reg[1:0] action; //2^2 possible actions 00->left 01->up 10->right 11->dowm
+    //reg[1:0] action; //2^2 possible actions 00->left 01->up 10->right 11->dowm
 
     //used in stage 2
     
     //used in stage 3
-    reg [23:0] sum;
+    //reg [23:0] sum;
 
     //used in stage 1 and 4
     //used for q table reading & writing 
@@ -83,7 +92,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
     wire [DATA_WIDTH-1:0] data_out_next;*/
 
     ///initial begin
-    initial begin 
+/*    initial begin 
         s<=6'b000_000;
         current_s<=6'b000000;
         nexts<=6'b000000;
@@ -91,14 +100,23 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         wflag_qmax<=0;
         rflag_q<=0;
         rflag_qmax<=0;
+    end*/
 
-    end
     //--------------stage 1-----------------
     always @(posedge clk) begin
-        //if(ce) begin
-
+    //initialize state and action
+        if (rst) begin
+            s<=6'b000_000;
+            current_s<=6'b000000;
+            nexts<=6'b000000;
+            wflag_q<=0;
+            wflag_qmax<=0;
+            rflag_q<=0;
+            rflag_qmax<=0;
+        end
+        
         //Random action generator -> draws a
-        action<=$urandom%4;
+ 
         //calculate 1-a and a*g 
         alpha<=8'b0000_0010;
         gamma<=8'b0000_0010;
@@ -142,9 +160,14 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         
         //wait and transit the state
         current_s<=s;
-        #10  s<=nexts; //dont know how long but I'll make it 5ns wait
+        current_s1<=current_s;
+        current_a<=action;
+        current_a1<=current_a;
+        s<=nexts; //dont know how long but I'll make it 5ns wait
     //end  
     end   
+    
+    
     
     //--------------stage 2-----------------
     always @(posedge clk) begin
@@ -153,11 +176,13 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
    // $display("stage 2 s: %06b,current_s: %06b, action:%02b, addrr_q,%08b", s,current_s,action,addrr_q);
         rflag_q<=1;
         q<=data_out_q;
+        q1<=q;
         
         rflag_r<=1;
         r<=data_out_r;
-        $display("stage 2 r: %02h", r);
-        $display("stage 2 q: %02h", q);
+        r1<=r;
+        $display("stage 2 r1: %02h", r1);
+        $display("stage 2 q1: %02h", q1);
         //locate Qmax at next state from Qmax table
         
         rflag_qmax<=1;
@@ -165,6 +190,10 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         //$display("stage 2 nexts: %06b", nexts);
         //$display("stage 2 addrr_qmax: %06b", addrr_qmax);
         $display("stage 2 qmax: %02h", qmax);
+        
+        current_s2<=current_s1;
+        current_a2<=current_a1;
+        
    // end
     end
     
@@ -174,9 +203,11 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
     //if(ce) begin
         //calculations of q learning function
                 //adder
-        sum <= alpha*r + oneminusa*q + ag*qmax;
+        sum <= alpha*r1 + oneminusa*q1 + ag*qmax;
         $display("stage 3 sum: %04h", sum);
-        //end
+        
+        current_s3<=current_s2;
+        current_a3<=current_a2;
 
     //end
     end
@@ -188,27 +219,28 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
         //write back to qmax table
         if (sum>q)begin
             wflag_qmax<=1;
-            addrw_qmax<=current_s;
+            addrw_qmax<=current_s3;
             data_in_qmax<=sum;
             $display("stage 4 update qmax data_in_qmax: %02h", data_in_qmax);
             $display("stage 4 update qmax addrw_qmax: %06b", addrw_qmax);
         end
         //write back to q table
         wflag_q<=1;
-        addrw_q<={current_s,action}; 
+        addrw_q<={current_s3,current_a3}; 
         data_in_q<=sum;
         $display("stage 4 update q data_in_q: %02h", data_in_q);
         $display("stage 4 update q addrw_q: %08b", addrw_q);
                 //stop the pipeline if reached end state
                 wflag_q<=1;
-        if (current_s == 6'b111111) begin
-            $finish;
-        end
+        //if (current_s3 == 6'b111111) begin
+        //    $finish;
+        //end
     //end
     end
         
     qtable qt0(
         .i_clk(clk),
+        .i_rst(rst),
         .i_addr_r(addrr_q), 
         .i_addr_w(addrw_q),
         .i_read_en(rflag_q), 
@@ -218,6 +250,7 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 16) ( input
 
     qmaxtable qmaxt0(
         .i_clk(clk),
+        .i_rst(rst),
         .i_addr_r(addrr_qmax), 
         .i_addr_w(addrw_qmax), 
         .i_read_en(rflag_qmax),

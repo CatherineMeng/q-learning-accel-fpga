@@ -76,5 +76,6 @@ module rtable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 256) (
             
             default :  o_data<= 8'b0000_0000; //others no reward
         endcase    
+        $display("r read %02h from: %08b\n", o_data, i_addr);
     end
 endmodule
