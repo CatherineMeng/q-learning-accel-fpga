@@ -2,7 +2,7 @@
 //assuming 64states, 4 actions, 256 s+a
 //state: 5:0 action: 1:0    s+a: 7:0 
 //q values stored on BRAM
-module qtable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 256) (
+module qtable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 32, DEPTH = 256) (
     input wire i_clk,
     input wire i_rst,
     input wire [ADDR_WIDTH-1:0] i_addr_r, 
@@ -30,7 +30,7 @@ module qtable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 8, DEPTH = 256) (
             if (i_rst) begin   
              memory_array[0] <= 0;     
                 for (i=0;i<DEPTH;i=i+1) begin
-                    memory_array[i] <= 8'b0000_0000;
+                    memory_array[i] <= 32'b0000_0000_0000_0000_0000_0000;
                 end
              //$readmemb("C:\Users\myuan\Desktop\q-learning-accel-fpga\qt_mem_init.txt",memory_array);
             end
