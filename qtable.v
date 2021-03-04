@@ -15,15 +15,7 @@ module qtable #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 32, DEPTH = 256) (
     ); 
     integer i;
     reg [DATA_WIDTH-1:0] memory_array [0:DEPTH-1]; 
-    
-    generate
-     //memory_array[0] <= 0;
-     integer ii;
-     initial
-        for (ii=0;ii<DEPTH;ii=ii+1) begin
-            memory_array[ii] <= {DATA_WIDTH{1'b0}};
-        end    
-    endgenerate     
+        
     always @ (posedge i_clk)
     begin
             if(i_write_en) begin
