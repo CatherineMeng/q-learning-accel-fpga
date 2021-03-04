@@ -14,23 +14,7 @@ module qmaxtable #(parameter ADDR_WIDTH = 16, DATA_WIDTH = 32, DEPTH = 65536) (
     ); 
     integer i;
     reg [DATA_WIDTH-1:0] memory_array [0:DEPTH-1]; 
-    //initialize the bram: depends on the test case
-    /*initial begin
-     memory_array[0] <= 0;
-        for (i=0;i<DEPTH;i=i+1) begin
-            memory_array[i] <= 8'b0000_0000;
-        end
-    end*/
-     //$readmemb("C:\Users\myuan\Desktop\q-learning-accel-fpga\qt_mem_init.txt",memory_array);
-    //end
-    generate
-     //memory_array[0] <= 0;
-     integer ii;
-     initial
-        for (ii=0;ii<DEPTH;ii=ii+1) begin
-            memory_array[ii] <= {DATA_WIDTH{1'b0}};
-        end    
-    endgenerate    
+   
     always @ (posedge i_clk)
     begin
             /*if (i_rst) begin
