@@ -130,9 +130,6 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 32, DEPTH = 16) ( inpu
         addrr_q<={s,action}; 
         addr_r<={s,action};
         addrr_qmax<=nexts;
-        //$display("stage 1 s: %06b, action:%02b", s,action);
-        //$display("stage 1 nexts: %06b", nexts);
-        //$display("stage 1 addrr_q:%08b, addr_r:%08b, addr_qmax:%06b", addrr_q,addr_r,addrr_qmax);
         
         //wait and transit the state
         current_s<=s;
@@ -155,15 +152,10 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 32, DEPTH = 16) ( inpu
         rflag_r<=1;
         r<=data_out_r;
         r1<=r;
-        //$display("stage 2 r1: %02h", r1);
-        //$display("stage 2 q1: %02h", q1);
         //locate Qmax at next state from Qmax table
         
         rflag_qmax<=1;
         qmax<=data_out_qmax;
-        //$display("stage 2 nexts: %06b", nexts);
-        //$display("stage 2 addrr_qmax: %06b", addrr_qmax);
-        //$display("stage 2 qmax: %02h", qmax);
         
         current_s2<=current_s1;
         current_a2<=current_a1;
@@ -401,9 +393,6 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 32, DEPTH = 16) ( inpu
         addrr_q<={s,action}; 
         addr_r<={s,action};
         addrr_qmax<=nexts;
-        //$display("stage 1 s: %06b, action:%02b", s,action);
-        //$display("stage 1 nexts: %06b", nexts);
-        //$display("stage 1 addrr_q:%08b, addr_r:%08b, addr_qmax:%06b", addrr_q,addr_r,addrr_qmax);
         
         //wait and transit the state
         current_s<=s;
@@ -426,15 +415,10 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 32, DEPTH = 16) ( inpu
         rflag_r<=1;
         r<=data_out_r;
         r1<=r;
-        //$display("stage 2 r1: %02h", r1);
-        //$display("stage 2 q1: %02h", q1);
         //locate Qmax at next state from Qmax table
         
         rflag_qmax<=1;
         qmax<=data_out_qmax;
-        //$display("stage 2 nexts: %06b", nexts);
-        //$display("stage 2 addrr_qmax: %06b", addrr_qmax);
-        //$display("stage 2 qmax: %02h", qmax);
         
         current_s2<=current_s1;
         current_a2<=current_a1;
@@ -488,15 +472,11 @@ module pipeline  #(parameter ADDR_WIDTH = 8, DATA_WIDTH = 32, DEPTH = 16) ( inpu
             wflag_qmax<=1;
             addrw_qmax<=current_s3;
             data_in_qmax<=sum;
-            //$display("stage 4 update qmax data_in_qmax: %02h", data_in_qmax);
-            //$display("stage 4 update qmax addrw_qmax: %06b", addrw_qmax);
         end
         //write back to q table
         wflag_q<=1;
         addrw_q<={current_s3,current_a3}; 
         data_in_q<=sum;
-        //$display("stage 4 update q data_in_q: %02h", data_in_q);
-        //$display("stage 4 update q addrw_q: %08b", addrw_q);
         //stop the pipeline if reached end state
         //if (current_s3 == 6'b111111) begin
         //    $finish;
